@@ -349,6 +349,90 @@
             margin-bottom: 20px;
             opacity: 0.3;
         }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow: auto;
+        }
+        
+        .modal-title {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--dark);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Work Sans', sans-serif;
+            font-size: 1rem;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .form-help {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 6px;
+        }
+        
+        .sync-status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .sync-status.success {
+            background: #e6f7ed;
+            color: var(--success);
+        }
+        
+        .sync-status.error {
+            background: #fee;
+            color: #c00;
+        }
+        
+        .sync-status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
     </style>
 </head>
 <body>
@@ -356,6 +440,7 @@
         <header>
             <h1>🛒 Costco Receipt Tracker</h1>
             <p class="subtitle">Snap, scan, and track your wholesale shopping with OCR technology</p>
+            <button class="btn btn-secondary" id="settingsBtn" style="margin-top: 20px;">⚙️ GitHub Settings</button>
         </header>
         
         <div class="upload-section">
@@ -438,6 +523,7 @@
         let receipts = JSON.parse(localStorage.getItem('costcoReceipts')) || [];
         let currentReceipt = null;
         let rawOCRText = '';
+        let githubConfig = JSON.parse(localStorage.getItem('githubConfig')) || null;
         
         // DOM elements
         const receiptInput = document.getElementById('receiptInput');
@@ -453,6 +539,231 @@
         const scanAnotherBtn = document.getElementById('scanAnotherBtn');
         const addItemBtn = document.getElementById('addItemBtn');
         const viewRawBtn = document.getElementById('viewRawBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        
+        // GitHub API functions
+        async function syncWithGitHub(action, data = null) {
+            if (!githubConfig) {
+                console.log('GitHub not configured');
+                return null;
+            }
+            
+            const { username, repo, token } = githubConfig;
+            const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/receipts.json`;
+            
+            try {
+                if (action === 'read') {
+                    const response = await fetch(apiUrl, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    
+                    if (response.status === 404) {
+                        console.log('receipts.json does not exist yet');
+                        return [];
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`GitHub API error: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    const content = atob(result.content);
+                    return JSON.parse(content);
+                    
+                } else if (action === 'write') {
+                    // First, get the current SHA (required for updates)
+                    let sha = null;
+                    try {
+                        const getResponse = await fetch(apiUrl, {
+                            headers: {
+                                'Authorization': `token ${token}`,
+                                'Accept': 'application/vnd.github.v3+json'
+                            }
+                        });
+                        if (getResponse.ok) {
+                            const current = await getResponse.json();
+                            sha = current.sha;
+                        }
+                    } catch (e) {
+                        console.log('File does not exist, will create new');
+                    }
+                    
+                    const content = btoa(JSON.stringify(data, null, 2));
+                    const body = {
+                        message: `Update receipts - ${new Date().toLocaleString()}`,
+                        content: content
+                    };
+                    
+                    if (sha) {
+                        body.sha = sha;
+                    }
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(body)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`GitHub API error: ${response.status}`);
+                    }
+                    
+                    return true;
+                }
+            } catch (error) {
+                console.error('GitHub sync error:', error);
+                throw error;
+            }
+        }
+        
+        async function loadReceiptsFromGitHub() {
+            if (!githubConfig) return;
+            
+            try {
+                const data = await syncWithGitHub('read');
+                if (data && Array.isArray(data)) {
+                    receipts = data;
+                    localStorage.setItem('costcoReceipts', JSON.stringify(receipts));
+                    updateHistory();
+                    showSyncStatus('Synced from GitHub ✓', 'success');
+                }
+            } catch (error) {
+                showSyncStatus('Error loading from GitHub: ' + error.message, 'error');
+            }
+        }
+        
+        async function saveReceiptsToGitHub() {
+            if (!githubConfig) return;
+            
+            try {
+                await syncWithGitHub('write', receipts);
+                showSyncStatus('Saved to GitHub ✓', 'success');
+            } catch (error) {
+                showSyncStatus('Error saving to GitHub: ' + error.message, 'error');
+            }
+        }
+        
+        function showSyncStatus(message, type) {
+            const existing = document.querySelector('.sync-status');
+            if (existing) existing.remove();
+            
+            const status = document.createElement('div');
+            status.className = `sync-status ${type}`;
+            status.textContent = message;
+            document.querySelector('.container').insertBefore(status, document.querySelector('header').nextSibling);
+            
+            setTimeout(() => status.remove(), 5000);
+        }
+        
+        // Settings modal
+        settingsBtn.addEventListener('click', function() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <h2 class="modal-title">GitHub Sync Settings</h2>
+                    
+                    <div class="form-group">
+                        <label class="form-label">GitHub Username</label>
+                        <input type="text" class="form-input" id="githubUsername" value="${githubConfig?.username || ''}" placeholder="your-username">
+                        <div class="form-help">Your GitHub username</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Repository Name</label>
+                        <input type="text" class="form-input" id="githubRepo" value="${githubConfig?.repo || ''}" placeholder="costco-receipt-tracker">
+                        <div class="form-help">The repository where you uploaded this file</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Personal Access Token</label>
+                        <input type="password" class="form-input" id="githubToken" value="${githubConfig?.token || ''}" placeholder="ghp_...">
+                        <div class="form-help">
+                            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Costco%20Receipt%20Tracker" target="_blank" style="color: var(--primary);">Create a token here</a> with "repo" scope
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; margin-top: 30px;">
+                        <button class="btn btn-primary" id="saveGitHubConfig">Save & Sync</button>
+                        <button class="btn btn-secondary" id="testGitHub">Test Connection</button>
+                        <button class="btn btn-secondary" id="closeSettings">Cancel</button>
+                    </div>
+                    
+                    ${githubConfig ? '<div style="margin-top: 20px;"><button class="btn btn-secondary" id="disableGitHub">Disable GitHub Sync</button></div>' : ''}
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            document.getElementById('saveGitHubConfig').addEventListener('click', async function() {
+                const username = document.getElementById('githubUsername').value.trim();
+                const repo = document.getElementById('githubRepo').value.trim();
+                const token = document.getElementById('githubToken').value.trim();
+                
+                if (!username || !repo || !token) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+                
+                githubConfig = { username, repo, token };
+                localStorage.setItem('githubConfig', JSON.stringify(githubConfig));
+                
+                modal.remove();
+                
+                // Initial sync
+                showSyncStatus('Connecting to GitHub...', 'info');
+                await loadReceiptsFromGitHub();
+            });
+            
+            document.getElementById('testGitHub').addEventListener('click', async function() {
+                const username = document.getElementById('githubUsername').value.trim();
+                const repo = document.getElementById('githubRepo').value.trim();
+                const token = document.getElementById('githubToken').value.trim();
+                
+                if (!username || !repo || !token) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+                
+                const testConfig = { username, repo, token };
+                const oldConfig = githubConfig;
+                githubConfig = testConfig;
+                
+                try {
+                    await syncWithGitHub('read');
+                    alert('✓ Connection successful!');
+                } catch (error) {
+                    alert('✗ Connection failed: ' + error.message);
+                    githubConfig = oldConfig;
+                }
+            });
+            
+            document.getElementById('closeSettings').addEventListener('click', function() {
+                modal.remove();
+            });
+            
+            if (document.getElementById('disableGitHub')) {
+                document.getElementById('disableGitHub').addEventListener('click', function() {
+                    if (confirm('Disable GitHub sync? Your local data will remain.')) {
+                        githubConfig = null;
+                        localStorage.removeItem('githubConfig');
+                        modal.remove();
+                        showSyncStatus('GitHub sync disabled', 'info');
+                    }
+                });
+            }
+            
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+        });
         
         // File input change
         receiptInput.addEventListener('change', async function(e) {
@@ -792,10 +1103,20 @@
         }
         
         // Save receipt
-        saveReceiptBtn.addEventListener('click', function() {
+        saveReceiptBtn.addEventListener('click', async function() {
             if (currentReceipt) {
                 receipts.unshift(currentReceipt);
                 localStorage.setItem('costcoReceipts', JSON.stringify(receipts));
+                
+                // Sync to GitHub if configured
+                if (githubConfig) {
+                    saveReceiptBtn.disabled = true;
+                    saveReceiptBtn.textContent = 'Saving...';
+                    await saveReceiptsToGitHub();
+                    saveReceiptBtn.disabled = false;
+                    saveReceiptBtn.textContent = 'Save Receipt';
+                }
+                
                 updateHistory();
                 alert('Receipt saved successfully!');
                 scanAnotherBtn.click();
@@ -868,6 +1189,11 @@
         
         // Initialize on load
         updateHistory();
+        
+        // Load from GitHub if configured
+        if (githubConfig) {
+            loadReceiptsFromGitHub();
+        }
     </script>
 </body>
 </html>

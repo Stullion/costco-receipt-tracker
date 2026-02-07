@@ -1,0 +1,114 @@
+[
+  {
+    "date": "2026-01-26T20:00:00.000Z",
+    "items": [
+      {
+        "name": "E 7367 LOLLIPEPPERS  N",
+        "quantity": 1,
+        "price": 7.99
+      },
+      {
+        "name": "E 30669 BANANAS N",
+        "quantity": 1,
+        "price": 1.99
+      },
+      {
+        "name": "E 131 ORG BRUSSELS N",
+        "quantity": 1,
+        "price": 7.49
+      },
+      {
+        "name": "E 11750 ORG GND TRKY  N",
+        "quantity": 1,
+        "price": 59.97
+      },
+      {
+        "name": "E 1136340 3LB ORG GALA N",
+        "quantity": 1,
+        "price": 4.79
+      },
+      {
+        "name": "E 4102 8\" TORTILLAS N",
+        "quantity": 1,
+        "price": 6.39
+      },
+      {
+        "name": "E 38175 CARA ORANGES  N",
+        "quantity": 1,
+        "price": 6.99
+      },
+      {
+        "name": "E 38480 ORGNC BS THG  N",
+        "quantity": 1,
+        "price": 32.17
+      },
+      {
+        "name": "E 1538359 KS F+V POUCH  N",
+        "quantity": 1,
+        "price": 11.99
+      },
+      {
+        "name": "87745 ROTISSERIE Y",
+        "quantity": 1,
+        "price": 9.98
+      },
+      {
+        "name": "E 1968920 FOH HUMMUS ~~  N",
+        "quantity": 1,
+        "price": 6.99
+      },
+      {
+        "name": "E 843323 STRING CHEES  N",
+        "quantity": 1,
+        "price": 10.99
+      },
+      {
+        "name": "E 41114 KSBUTERQTR N",
+        "quantity": 1,
+        "price": 8.49
+      },
+      {
+        "name": "E 103421 FRANZ GF BRD N",
+        "quantity": 1,
+        "price": 9.99
+      },
+      {
+        "name": "E 1068083 ORG FREGGS N",
+        "quantity": 1,
+        "price": 9.99
+      },
+      {
+        "name": "E 519638 ORG BLUES N",
+        "quantity": 1,
+        "price": 8.99
+      },
+      {
+        "name": "E 31255 CAULIFLOWER  N",
+        "quantity": 1,
+        "price": 15.98
+      },
+      {
+        "name": "E 7267 ORG BROC2LB N",
+        "quantity": 1,
+        "price": 6.99
+      },
+      {
+        "name": "E 1532925 CHOMPS STICK  N",
+        "quantity": 1,
+        "price": 18.99
+      },
+      {
+        "name": "E 1564814 ALMNDCRACKER  N",
+        "quantity": 1,
+        "price": 9.99
+      },
+      {
+        "name": "E 859695 KS ALMND BTR N",
+        "quantity": 1,
+        "price": 8.69
+      }
+    ],
+    "total": 266.72,
+    "rawDate": "01/26/2026"
+  }
+]
